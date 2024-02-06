@@ -1,6 +1,11 @@
-from PIL import Image, ImageDraw, ImageFont
+import sys
 import re
 
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QFileDialog, QVBoxLayout, QWidget, QLineEdit, QInputDialog
+from PyQt5.QtGui import QPixmap, QImage, QPainter, QPen
+from PyQt5.QtCore import Qt, QPoint
+
+from PIL import Image, ImageDraw, ImageFont
 
 def embed_label(path, out, meta):
   signature = b'\x89PNG\r\n\x1a\n'
@@ -27,7 +32,6 @@ def embed_label(path, out, meta):
   with open(out, 'wb') as file:
       file.write(out_content)
 
-
 def read_labels(path):
   with open(path, 'rb') as file:
     content = file.read()
@@ -52,14 +56,12 @@ def read_labels(path):
 
   return None
 
-
 def process_labels(labels):
   pattern = r"\[content:'(.*?)',\s*position:\((\d+),\s*(\d+)\)\]"
   matches = re.findall(pattern, labels)
   result = [{'content': match[0], 'position': (int(match[1]), int(match[2]))} for match in matches]
 
   return result
-
 
 def draw_label(path, out, labelpath):
     image = Image.open(path)
@@ -77,16 +79,65 @@ def draw_label(path, out, labelpath):
 
     image.save(out)
 
+class ImageWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.selected_pixels = []
+        self.image_label = QLabel()
+        self.image_label.setMouseTracking(True)
+        self.initUI()
 
-label = "[content:'Namn Namnsson', position:(32, 32)],[content:'Test Testsson', position:(64, 64)],[content:'Sson Ssonnamn', position:(96, 96)]"
-embed_label("test.png", "labeled.lbpng", label)
+    def initUI(self):
+        self.setWindowTitle("Image Pixel Selector")
+        self.setGeometry(100, 100, 800, 600)
 
-draw_label("test.png", "labeled.png", "labeled.lbpng")
+        open_button = QPushButton("Open Image", self)
+        open_button.clicked.connect(self.open_image)
 
-image = Image.open("test.png")
-image2 = Image.open("labeled.png")
-image_with_label = Image.open("labeled.lbpng")
+        save_button = QPushButton("Save Selected Pixels", self)
+        save_button.clicked.connect(self.save_pixels)
 
-image.show()
-image2.show()
-image_with_label.show()
+        layout = QVBoxLayout()
+        layout.addWidget(open_button)
+        layout.addWidget(save_button)
+        layout.addWidget(self.image_label)
+
+        central_widget = QWidget()
+        central_widget.setLayout(layout)
+        self.setCentralWidget(central_widget)
+
+    def open_image(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open Image", "", "Image files (*.png *.jpg *.jpeg *.gif *.bmp *.tiff)")
+        if file_path:
+            self.image = QPixmap(file_path)
+            self.image_label.setPixmap(self.image)
+
+    def save_pixels(self):
+        if self.selected_pixels:
+            pixel_string = ",".join(self.selected_pixels)
+
+            embed_label("test.png", "labeled.lbpng", pixel_string)
+            draw_label("test.png", "labeled.png", "labeled.lbpng")
+
+            image = Image.open("labeled.png")
+            image.show()
+        else:
+            print("No pixels selected to save.")
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self.image_label.pixmap() is not None:
+            x = event.x() - self.image_label.pos().x()
+            y = event.y() - self.image_label.pos().y()
+            if 0 <= x < self.image_label.pixmap().width() and 0 <= y < self.image_label.pixmap().height():
+                image = self.image_label.pixmap().toImage()
+                content, ok = QInputDialog.getText(self, "Enter Content", "Enter content for selected pixel:")
+                if ok:
+                    pixel_info = f"[content:'{content}', position:({x}, {y})]"
+                    self.selected_pixels.append(pixel_info)
+                    print(f"Selected pixel at ({x}, {y}) with content: {content}")
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    ex = ImageWindow()
+    ex.show()
+    sys.exit(app.exec_())
