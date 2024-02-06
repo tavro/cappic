@@ -48,7 +48,7 @@ def read_label(path):
   return None
 
 label = "Test Label"
-embed_label("test.png", "labeled.png", label)
+embed_label("test.png", "labeled.lbpng", label)
 
-data = read_label("labeled.png")
+data = read_label("labeled.lbpng")
 print(data)
