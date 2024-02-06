@@ -1,3 +1,7 @@
+from PIL import Image, ImageDraw, ImageFont
+import re
+
+
 def embed_label(path, out, meta):
   signature = b'\x89PNG\r\n\x1a\n'
   
@@ -23,7 +27,8 @@ def embed_label(path, out, meta):
   with open(out, 'wb') as file:
       file.write(out_content)
 
-def read_label(path):
+
+def read_labels(path):
   with open(path, 'rb') as file:
     content = file.read()
 
@@ -47,8 +52,41 @@ def read_label(path):
 
   return None
 
-label = "Test Label"
+
+def process_labels(labels):
+  pattern = r"\[content:'(.*?)',\s*position:\((\d+),\s*(\d+)\)\]"
+  matches = re.findall(pattern, labels)
+  result = [{'content': match[0], 'position': (int(match[1]), int(match[2]))} for match in matches]
+
+  return result
+
+
+def draw_label(path, out, labelpath):
+    image = Image.open(path)
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.truetype("arial.ttf", size=24)
+
+    labels = read_labels(labelpath)
+    labels = process_labels(labels)
+
+    for data in labels:
+        meta = data['content']
+        position = data['position']
+        color = (255, 0, 0)
+        draw.text(position, meta, fill=color, font=font)
+
+    image.save(out)
+
+
+label = "[content:'Namn Namnsson', position:(32, 32)],[content:'Test Testsson', position:(64, 64)],[content:'Sson Ssonnamn', position:(96, 96)]"
 embed_label("test.png", "labeled.lbpng", label)
 
-data = read_label("labeled.lbpng")
-print(data)
+draw_label("test.png", "labeled.png", "labeled.lbpng")
+
+image = Image.open("test.png")
+image2 = Image.open("labeled.png")
+image_with_label = Image.open("labeled.lbpng")
+
+image.show()
+image2.show()
+image_with_label.show()
