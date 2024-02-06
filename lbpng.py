@@ -66,7 +66,9 @@ def process_labels(labels):
 def draw_label(path, out, labelpath):
     image = Image.open(path)
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype("arial.ttf", size=24)
+    
+    font_size = 12
+    font = ImageFont.truetype("arial.ttf", size=font_size)
 
     labels = read_labels(labelpath)
     labels = process_labels(labels)
@@ -74,7 +76,19 @@ def draw_label(path, out, labelpath):
     for data in labels:
         meta = data['content']
         position = data['position']
-        color = (255, 0, 0)
+        color = (0, 0, 0)
+        text_width, text_height = draw.textsize(meta, font=font)
+        
+        padding = 4
+        stroke_width = 2
+        total_padding = padding + stroke_width
+        stroke_position = (position[0] - total_padding, position[1] - total_padding,
+                           position[0] + text_width + total_padding, position[1] + text_height + total_padding)
+        background_position = (position[0] - padding, position[1] - padding,
+                               position[0] + text_width + padding, position[1] + text_height + padding)
+        
+        draw.rectangle(stroke_position, fill=(0, 0, 0))
+        draw.rectangle(background_position, fill=(255, 255, 255))
         draw.text(position, meta, fill=color, font=font)
 
     image.save(out)
